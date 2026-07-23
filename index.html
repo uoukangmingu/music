@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>코드 뮤직 제너레이터</title>
+  <style>
+    :root {
+      --bg: #11100e;
+      --panel: rgba(34, 31, 26, 0.92);
+      --panel-2: #29251f;
+      --line: #4a4237;
+      --text: #f1eadc;
+      --muted: #b6aa97;
+      --accent: #d2aa62;
+      --accent-2: #8e6740;
+      --danger: #c87062;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Inter, Pretendard, "Noto Sans KR", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 20% 5%, rgba(142, 103, 64, 0.2), transparent 32%),
+        radial-gradient(circle at 85% 25%, rgba(210, 170, 98, 0.08), transparent 30%),
+        linear-gradient(135deg, #0c0b0a, #171411 58%, #0b0a09);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .app {
+      width: min(980px, 100%);
+      background: var(--panel);
+      border: 1px solid rgba(210, 170, 98, 0.2);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      backdrop-filter: blur(18px);
+    }
+
+    header {
+      padding: 28px 30px 22px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: center;
+      background: linear-gradient(180deg, rgba(210, 170, 98, 0.08), transparent);
+    }
+
+    h1 {
+      margin: 0 0 7px;
+      font-size: clamp(1.45rem, 4vw, 2.2rem);
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.95rem;
+    }
+
+    .live-pill {
+      min-width: 110px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: #151310;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      text-align: center;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+
+    .live-pill.playing {
+      color: #f6d28f;
+      border-color: rgba(210, 170, 98, 0.65);
+      box-shadow: 0 0 24px rgba(210, 170, 98, 0.14);
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+      gap: 22px;
+      padding: 24px;
+    }
+
+    .visual,
+    .controls {
+      border-radius: 22px;
+      border: 1px solid var(--line);
+      background: rgba(18, 16, 14, 0.76);
+    }
+
+    .visual {
+      min-height: 440px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    canvas {
+      width: 100%;
+      flex: 1;
+      min-height: 300px;
+      border-radius: 16px;
+      background:
+        linear-gradient(rgba(210,170,98,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(210,170,98,0.03) 1px, transparent 1px),
+        #0d0c0a;
+      background-size: 32px 32px;
+      border: 1px solid #302a23;
+    }
+
+    .track-info {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-end;
+      margin-top: 16px;
+    }
+
+    .track-name {
+      font-size: 1.05rem;
+      font-weight: 750;
+      margin-bottom: 5px;
+    }
+
+    .track-meta,
+    .clock {
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .controls {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 17px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 8px;
+    }
+
+    select,
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      color: var(--text);
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      border-radius: 12px;
+      padding: 11px 12px;
+      outline: none;
+      font: inherit;
+    }
+
+    select:focus,
+    input:focus {
+      border-color: var(--accent-2);
+      box-shadow: 0 0 0 3px rgba(210, 170, 98, 0.08);
+    }
+
+    .range-row {
+      display: grid;
+      grid-template-columns: 1fr 52px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    output {
+      color: #f0cc88;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.9rem;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 2px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 13px;
+      padding: 12px 14px;
+      font: inherit;
+      font-weight: 750;
+      cursor: pointer;
+      transition: transform .14s ease, filter .14s ease, opacity .14s ease;
+    }
+
+    button:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.06); }
+    button:active:not(:disabled) { transform: translateY(0); }
+    button:disabled { cursor: wait; opacity: .58; }
+
+    .primary {
+      color: #1c150b;
+      background: linear-gradient(135deg, #e2bc74, #b98545);
+    }
+
+    .secondary {
+      color: var(--text);
+      background: #332e27;
+      border: 1px solid #574c3f;
+    }
+
+    .danger {
+      color: #f7e8e5;
+      background: #442b28;
+      border: 1px solid #6f403a;
+    }
+
+    .wide { grid-column: 1 / -1; }
+
+    .note {
+      color: var(--muted);
+      font-size: .78rem;
+      line-height: 1.55;
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+    }
+
+    .status {
+      min-height: 22px;
+      color: #e7c783;
+      font-size: .84rem;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 760px) {
+      body { padding: 10px; }
+      header { padding: 22px 20px 18px; align-items: flex-start; }
+      .live-pill { min-width: auto; }
+      main { grid-template-columns: 1fr; padding: 14px; }
+      .visual { min-height: 340px; }
+      canvas { min-height: 220px; }
+    }
+
+    @media (max-width: 430px) {
+      .grid-2, .buttons { grid-template-columns: 1fr; }
+      .wide { grid-column: auto; }
+      .track-info { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <section class="app">
+    <header>
+      <div>
+        <h1>코드 뮤직 제너레이터</h1>
+        <p class="subtitle">음원 파일과 외부 라이브러리 없이, 자바스크립트 코드만으로 실시간 음악을 만듭니다.</p>
+      </div>
+      <div id="livePill" class="live-pill">● 대기 중</div>
+    </header>
+
+    <main>
+      <section class="visual">
+        <canvas id="visualizer" aria-label="오디오 시각화"></canvas>
+        <div class="track-info">
+          <div>
+            <div id="trackName" class="track-name">고요한 석등 아래</div>
+            <div id="trackMeta" class="track-meta">명상 사원 · D 단조 오음계</div>
+          </div>
+          <div id="clock" class="clock">00:00 / 02:00</div>
+        </div>
+      </section>
+
+      <section class="controls">
+        <div>
+          <label for="preset">분위기</label>
+          <select id="preset">
+            <option value="temple">명상 사원 · 낮고 무거움</option>
+            <option value="rain">비 내리는 심야 카페</option>
+            <option value="dream">몽환적인 새벽</option>
+            <option value="ritual">어두운 의식 · 긴장감</option>
+          </select>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <label for="key">조성</label>
+            <select id="key">
+              <option value="50">D</option>
+              <option value="48">C</option>
+              <option value="53">F</option>
+              <option value="55">G</option>
+              <option value="57">A</option>
+            </select>
+          </div>
+          <div>
+            <label for="duration">곡 길이</label>
+            <select id="duration">
+              <option value="60">1분</option>
+              <option value="120" selected>2분</option>
+              <option value="180">3분</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="bpm">템포</label>
+          <div class="range-row">
+            <input id="bpm" type="range" min="45" max="92" value="62" />
+            <output id="bpmOut">62</output>
+          </div>
+        </div>
+
+        <div>
+          <label for="density">멜로디 밀도</label>
+          <div class="range-row">
+            <input id="density" type="range" min="1" max="10" value="4" />
+            <output id="densityOut">4</output>
+          </div>
+        </div>
+
+        <div>
+          <label for="seed">곡 시드</label>
+          <input id="seed" type="text" value="stone-lantern-01" maxlength="40" />
+        </div>
+
+        <div class="buttons">
+          <button id="playBtn" class="primary">▶ 생성·재생</button>
+          <button id="stopBtn" class="danger">■ 정지</button>
+          <button id="newSeedBtn" class="secondary">↻ 새 곡</button>
+          <button id="exportBtn" class="secondary">⇩ WAV 저장</button>
+        </div>
+
+        <div id="status" class="status">재생 버튼을 누르면 브라우저가 즉시 곡을 합성합니다.</div>
+        <div class="note">
+          사운드는 드론, 패드, 종, 저음 타악기, 바람·비 노이즈를 코드로 직접 합성합니다. 브라우저 보안 정책 때문에 첫 재생은 반드시 버튼 클릭으로 시작해야 합니다.
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <script>
+    'use strict';
+
+    const $ = (id) => document.getElementById(id);
+    const ui = {
+      preset: $('preset'), key: $('key'), duration: $('duration'), bpm: $('bpm'),
+      density: $('density'), seed: $('seed'), bpmOut: $('bpmOut'), densityOut: $('densityOut'),
+      playBtn: $('playBtn'), stopBtn: $('stopBtn'), newSeedBtn: $('newSeedBtn'),
+      exportBtn: $('exportBtn'), status: $('status'), livePill: $('livePill'),
+      trackName: $('trackName'), trackMeta: $('trackMeta'), clock: $('clock'),
+      canvas: $('visualizer')
+    };
+
+    const PRESETS = {
+      temple: {
+        label: '명상 사원', scale: [0, 3, 5, 7, 10],
+        drone: [0, 7], pad: [0, 3, 7], wave: 'sine',
+        noise: 0.018, bell: 0.72, percussion: 0.44, darkness: 0.74,
+        names: ['고요한 석등 아래', '천천히 번지는 향', '새벽 범종의 그림자', '무언의 회랑']
+      },
+      rain: {
+        label: '비 내리는 심야 카페', scale: [0, 2, 3, 7, 9],
+        drone: [0, 7], pad: [0, 3, 9], wave: 'triangle',
+        noise: 0.06, bell: 0.38, percussion: 0.3, darkness: 0.58,
+        names: ['유리창에 남은 빗물', '마지막 손님', '새벽 두 시의 찻잔', '젖은 골목의 불빛']
+      },
+      dream: {
+        label: '몽환적인 새벽', scale: [0, 2, 5, 7, 9],
+        drone: [0, 5], pad: [0, 5, 9], wave: 'sine',
+        noise: 0.012, bell: 0.55, percussion: 0.2, darkness: 0.36,
+        names: ['잠들지 않는 구름', '푸른 새벽의 파문', '아득한 달의 편지', '꿈의 가장자리']
+      },
+      ritual: {
+        label: '어두운 의식', scale: [0, 1, 5, 6, 10],
+        drone: [0, 6], pad: [0, 1, 6], wave: 'sawtooth',
+        noise: 0.028, bell: 0.65, percussion: 0.7, darkness: 0.95,
+        names: ['닫힌 문 너머의 기도', '검은 촛불의 행렬', '봉인된 북소리', '깊은 회랑의 의식']
+      }
+    };
+
+    let audioCtx = null;
+    let master = null;
+    let analyser = null;
+    let activeNodes = [];
+    let timers = [];
+    let animationFrame = 0;
+    let playStartedAt = 0;
+    let playDuration = 0;
+    let playing = false;
+
+    class RNG {
+      constructor(seedText) {
+        let h = 2166136261 >>> 0;
+        for (let i = 0; i < seedText.length; i++) {
+          h ^= seedText.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        this.state = h >>> 0;
+      }
+      next() {
+        this.state += 0x6D2B79F5;
+        let t = this.state;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      }
+      int(min, max) { return Math.floor(this.next() * (max - min + 1)) + min; }
+      pick(arr) { return arr[Math.floor(this.next() * arr.length)]; }
+      chance(p) { return this.next() < p; }
+    }
+
+    function midiToHz(midi) {
+      return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    function getSettings() {
+      return {
+        presetKey: ui.preset.value,
+        preset: PRESETS[ui.preset.value],
+        root: Number(ui.key.value),
+        duration: Number(ui.duration.value),
+        bpm: Number(ui.bpm.value),
+        density: Number(ui.density.value),
+        seed: ui.seed.value.trim() || 'untitled-seed'
+      };
+    }
+
+    function titleFor(settings) {
+      const rng = new RNG(settings.seed + settings.presetKey);
+      return rng.pick(settings.preset.names);
+    }
+
+    function keyName(midi) {
+      return ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'][midi % 12];
+    }
+
+    function refreshMeta() {
+      const s = getSettings();
+      ui.trackName.textContent = titleFor(s);
+      ui.trackMeta.textContent = `${s.preset.label} · ${keyName(s.root)} 기반 오음계 · ${s.bpm} BPM`;
+      ui.clock.textContent = `00:00 / ${formatTime(s.duration)}`;
+    }
+
+    function formatTime(seconds) {
+      const s = Math.max(0, Math.floor(seconds));
+      return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    }
+
+    function trackNode(node) {
+      activeNodes.push(node);
+      return node;
+    }
+
+    function createImpulse(context, seconds = 4.5, decay = 3.4) {
+      const length = Math.floor(context.sampleRate * seconds);
+      const impulse = context.createBuffer(2, length, context.sampleRate);
+      const rng = new RNG('fixed-reverb');
+      for (let channel = 0; channel < 2; channel++) {
+        const data = impulse.getChannelData(channel);
+        for (let i = 0; i < length; i++) {
+          data[i] = (rng.next() * 2 - 1) * Math.pow(1 - i / length, decay);
+        }
+      }
+      return impulse;
+    }
+
+    function buildBus(context, destination) {
+      const input = context.createGain();
+      const dry = context.createGain();
+      const convolver = context.createConvolver();
+      const wet = context.createGain();
+      const compressor = context.createDynamicsCompressor();
+      const filter = context.createBiquadFilter();
+
+      convolver.buffer = createImpulse(context);
+      dry.gain.value = 0.82;
+      wet.gain.value = 0.34;
+      filter.type = 'lowpass';
+      filter.frequency.value = 10500;
+      compressor.threshold.value = -18;
+      compressor.knee.value = 18;
+      compressor.ratio.value = 4;
+      compressor.attack.value = 0.01;
+      compressor.release.value = 0.3;
+
+      input.connect(dry).connect(filter);
+      input.connect(convolver).connect(wet).connect(filter);
+      filter.connect(compressor).connect(destination);
+      return { input, compressor };
+    }
+
+    function addOsc(context, destination, options) {
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+      const filter = context.createBiquadFilter();
+      osc.type = options.type || 'sine';
+      osc.frequency.setValueAtTime(options.frequency, options.start);
+      if (options.detune) osc.detune.setValueAtTime(options.detune, options.start);
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(options.cutoff || 2200, options.start);
+      filter.Q.value = options.q || 0.7;
+
+      const a = Math.max(0.01, options.attack || 0.2);
+      const r = Math.max(0.01, options.release || 0.5);
+      const end = options.start + options.duration;
+      gain.gain.setValueAtTime(0.0001, options.start);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, options.volume || 0.1), options.start + a);
+      gain.gain.setValueAtTime(Math.max(0.0002, options.volume || 0.1), Math.max(options.start + a, end - r));
+      gain.gain.exponentialRampToValueAtTime(0.0001, end);
+
+      osc.connect(filter).connect(gain).connect(destination);
+      osc.start(options.start);
+      osc.stop(end + 0.05);
+      trackNode(osc); trackNode(gain); trackNode(filter);
+      return { osc, gain };
+    }
+
+    function addDrone(context, bus, settings, start, end) {
+      const rootHz = midiToHz(settings.root - 24);
+      settings.preset.drone.forEach((interval, index) => {
+        [-7, 0, 7].forEach((detune, layer) => {
+          const volume = 0.026 / (layer === 1 ? 1 : 1.6);
+          addOsc(context, bus, {
+            frequency: rootHz * Math.pow(2, interval / 12),
+            start,
+            duration: end - start,
+            attack: 4 + index,
+            release: 7,
+            volume,
+            type: index ? 'triangle' : 'sine',
+            detune,
+            cutoff: 420 + 180 * index
+          });
+        });
+      });
+    }
+
+    function addPadChord(context, bus, rootMidi, intervals, start, duration, darkness, rng) {
+      intervals.forEach((interval, i) => {
+        const midi = rootMidi + interval + (i === 0 ? -12 : 0);
+        [-8, 0, 8].forEach((detune, j) => {
+          addOsc(context, bus, {
+            frequency: midiToHz(midi),
+            start,
+            duration,
+            attack: 2.2 + rng.next() * 1.5,
+            release: 3.2,
+            volume: 0.022 / (j === 1 ? 1 : 1.8),
+            type: darkness > 0.8 ? 'triangle' : 'sine',
+            detune,
+            cutoff: 700 + (1 - darkness) * 1800
+          });
+        });
+      });
+    }
+
+    function addBell(context, bus, frequency, start, volume = 0.16) {
+      const partials = [1, 2.01, 3.9, 5.42];
+      partials.forEach((ratio, i) => {
+        addOsc(context, bus, {
+          frequency: frequency * ratio,
+          start,
+          duration: 4.2 - i * 0.42,
+          attack: 0.008,
+          release: 3.8 - i * 0.35,
+          volume: volume / Math.pow(i + 1, 1.15),
+          type: i < 2 ? 'sine' : 'triangle',
+          cutoff: 6500
+        });
+      });
+    }
+
+    function addLowDrum(context, bus, start, strength = 1) {
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+      const filter = context.createBiquadFilter();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(105, start);
+      osc.frequency.exponentialRampToValueAtTime(43, start + 0.34);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.28 * strength, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 1.15);
+      filter.type = 'lowpass';
+      filter.frequency.value = 360;
+      osc.connect(filter).connect(gain).connect(bus);
+      osc.start(start);
+      osc.stop(start + 1.2);
+      trackNode(osc); trackNode(gain); trackNode(filter);
+    }
+
+    function addNoiseBed(context, bus, start, duration, amount, presetKey) {
+      const length = Math.ceil(context.sampleRate * duration);
+      const buffer = context.createBuffer(1, length, context.sampleRate);
+      const data = buffer.getChannelData(0);
+      const rng = new RNG(`noise-${presetKey}`);
+      let brown = 0;
+      for (let i = 0; i < length; i++) {
+        const white = rng.next() * 2 - 1;
+        brown = (brown + 0.025 * white) / 1.025;
+        data[i] = brown * 3.2;
+      }
+      const src = context.createBufferSource();
+      const gain = context.createGain();
+      const filter = context.createBiquadFilter();
+      src.buffer = buffer;
+      filter.type = presetKey === 'rain' ? 'highpass' : 'bandpass';
+      filter.frequency.value = presetKey === 'rain' ? 850 : 380;
+      filter.Q.value = presetKey === 'rain' ? 0.3 : 0.7;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.linearRampToValueAtTime(amount, start + 3);
+      gain.gain.setValueAtTime(amount, start + Math.max(3, duration - 4));
+      gain.gain.linearRampToValueAtTime(0.0001, start + duration);
+      src.connect(filter).connect(gain).connect(bus);
+      src.start(start);
+      src.stop(start + duration + 0.05);
+      trackNode(src); trackNode(gain); trackNode(filter);
+    }
+
+    function addRainDrops(context, bus, start, duration, rng) {
+      for (let t = 0.4; t < duration - 1; t += 0.15 + rng.next() * 0.48) {
+        if (!rng.chance(0.55)) continue;
+        const freq = 1600 + rng.next() * 4200;
+        addOsc(context, bus, {
+          frequency: freq,
+          start: start + t,
+          duration: 0.035 + rng.next() * 0.06,
+          attack: 0.004,
+          release: 0.05,
+          volume: 0.008 + rng.next() * 0.009,
+          type: 'sine',
+          cutoff: 8000
+        });
+      }
+    }
+
+    function buildArrangement(context, destination, settings, startAt = 0) {
+      const rng = new RNG(settings.seed);
+      const bus = buildBus(context, destination).input;
+      const beat = 60 / settings.bpm;
+      const bar = beat * 4;
+      const end = startAt + settings.duration;
+      const intro = Math.min(12, settings.duration * 0.11);
+      const outro = Math.min(14, settings.duration * 0.12);
+
+      addDrone(context, bus, settings, startAt, end);
+      addNoiseBed(context, bus, startAt, settings.duration, settings.preset.noise, settings.presetKey);
+      if (settings.presetKey === 'rain') addRainDrops(context, bus, startAt, settings.duration, rng);
+
+      const chordRoots = settings.presetKey === 'ritual' ? [0, 1, -2, 0] : [0, -2, 3, 0];
+      for (let t = intro; t < settings.duration - outro; t += bar * 4) {
+        const sectionIndex = Math.floor(t / (bar * 4));
+        const shift = chordRoots[sectionIndex % chordRoots.length];
+        const chordDuration = Math.min(bar * 4 + 2.5, settings.duration - t);
+        addPadChord(context, bus, settings.root + shift - 12, settings.preset.pad, startAt + t, chordDuration, settings.preset.darkness, rng);
+      }
+
+      const noteChance = 0.18 + settings.density * 0.055;
+      let phraseNote = 0;
+      for (let t = intro + beat * 2; t < settings.duration - outro; t += beat / 2) {
+        const section = t / settings.duration;
+        const dynamic = section < 0.22 ? 0.65 : section > 0.78 ? 0.72 : 1;
+        if (!rng.chance(noteChance * dynamic)) continue;
+
+        const stepChoices = [-2, -1, 0, 1, 2];
+        phraseNote += rng.pick(stepChoices);
+        phraseNote = Math.max(-1, Math.min(settings.preset.scale.length + 3, phraseNote));
+        const octave = phraseNote >= settings.preset.scale.length ? 12 : phraseNote < 0 ? -12 : 0;
+        const scaleIndex = (phraseNote + settings.preset.scale.length) % settings.preset.scale.length;
+        const midi = settings.root + 12 + settings.preset.scale[scaleIndex] + octave;
+        const dur = rng.chance(0.2) ? beat * 2.7 : beat * (0.7 + rng.next() * 1.2);
+        const start = startAt + t + (rng.next() - 0.5) * 0.025;
+
+        addOsc(context, bus, {
+          frequency: midiToHz(midi), start, duration: dur,
+          attack: 0.03, release: Math.min(1.8, dur * 0.8),
+          volume: 0.036 + rng.next() * 0.026,
+          type: settings.preset.wave,
+          cutoff: 1600 + (1 - settings.preset.darkness) * 3200
+        });
+
+        if (rng.chance(settings.preset.bell * 0.18)) {
+          addBell(context, bus, midiToHz(midi + 12), start + 0.02, 0.055 + rng.next() * 0.035);
+        }
+      }
+
+      const drumEveryBars = settings.presetKey === 'ritual' ? 2 : 4;
+      for (let t = intro; t < settings.duration - outro; t += bar * drumEveryBars) {
+        if (rng.chance(settings.preset.percussion)) {
+          addLowDrum(context, bus, startAt + t, 0.56 + settings.preset.darkness * 0.42);
+        }
+        if (settings.presetKey === 'ritual' && rng.chance(0.55)) {
+          addLowDrum(context, bus, startAt + t + beat * 2.5, 0.48);
+        }
+      }
+
+      for (let t = intro * 0.65; t < settings.duration - outro; t += bar * (6 + rng.int(0, 3))) {
+        const bellMidi = settings.root + 24 + rng.pick(settings.preset.scale);
+        addBell(context, bus, midiToHz(bellMidi), startAt + t, 0.09 + settings.preset.bell * 0.07);
+      }
+
+      return end;
+    }
+
+    async function startPlayback() {
+      stopPlayback();
+      const settings = getSettings();
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        await audioCtx.resume();
+
+        master = audioCtx.createGain();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 1024;
+        analyser.smoothingTimeConstant = 0.84;
+        master.gain.value = 0.78;
+        master.connect(analyser).connect(audioCtx.destination);
+
+        const start = audioCtx.currentTime + 0.08;
+        buildArrangement(audioCtx, master, settings, start);
+        playStartedAt = performance.now() / 1000 + 0.08;
+        playDuration = settings.duration;
+        playing = true;
+        setPlayingUI(true, `“${titleFor(settings)}” 재생 중`);
+        drawVisualizer();
+
+        const timer = window.setTimeout(() => stopPlayback(true), (settings.duration + 0.3) * 1000);
+        timers.push(timer);
+      } catch (error) {
+        console.error(error);
+        ui.status.textContent = '오디오를 시작하지 못했습니다. Chrome, Edge 또는 Firefox에서 다시 시도해 주세요.';
+      }
+    }
+
+    function stopPlayback(natural = false) {
+      timers.forEach(clearTimeout);
+      timers = [];
+      cancelAnimationFrame(animationFrame);
+      activeNodes.forEach((node) => {
+        try { if (typeof node.stop === 'function') node.stop(); } catch (_) {}
+        try { node.disconnect(); } catch (_) {}
+      });
+      activeNodes = [];
+      if (audioCtx) {
+        try { audioCtx.close(); } catch (_) {}
+      }
+      audioCtx = null;
+      analyser = null;
+      master = null;
+      playing = false;
+      setPlayingUI(false, natural ? '곡 재생이 끝났습니다.' : '재생을 정지했습니다.');
+      refreshMeta();
+      drawIdle();
+    }
+
+    function setPlayingUI(isPlaying, message) {
+      ui.livePill.classList.toggle('playing', isPlaying);
+      ui.livePill.textContent = isPlaying ? '● 재생 중' : '● 대기 중';
+      ui.playBtn.textContent = isPlaying ? '↻ 처음부터 재생' : '▶ 생성·재생';
+      ui.status.textContent = message;
+    }
+
+    function resizeCanvas() {
+      const rect = ui.canvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const width = Math.max(1, Math.floor(rect.width * dpr));
+      const height = Math.max(1, Math.floor(rect.height * dpr));
+      if (ui.canvas.width !== width || ui.canvas.height !== height) {
+        ui.canvas.width = width;
+        ui.canvas.height = height;
+      }
+      return { width, height, dpr };
+    }
+
+    function drawIdle() {
+      const { width, height } = resizeCanvas();
+      const ctx = ui.canvas.getContext('2d');
+      ctx.clearRect(0, 0, width, height);
+      ctx.save();
+      ctx.translate(width / 2, height / 2);
+      for (let ring = 0; ring < 7; ring++) {
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(210,170,98,${0.12 - ring * 0.012})`;
+        ctx.lineWidth = 1.5;
+        ctx.arc(0, 0, 24 + ring * Math.min(width, height) * 0.055, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(210,170,98,0.75)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawVisualizer() {
+      if (!playing || !analyser) return;
+      const { width, height } = resizeCanvas();
+      const ctx = ui.canvas.getContext('2d');
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(data);
+
+      ctx.clearRect(0, 0, width, height);
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const maxRadius = Math.min(width, height) * 0.38;
+      const bands = 120;
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(-Math.PI / 2);
+      for (let i = 0; i < bands; i++) {
+        const index = Math.floor(i / bands * Math.min(data.length, 310));
+        const level = data[index] / 255;
+        const angle = i / bands * Math.PI * 2;
+        const inner = maxRadius * 0.48;
+        const outer = inner + level * maxRadius * 0.5;
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(210,170,98,${0.22 + level * 0.7})`;
+        ctx.lineWidth = Math.max(1, width / 820);
+        ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+        ctx.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      const elapsed = Math.min(playDuration, performance.now() / 1000 - playStartedAt);
+      ui.clock.textContent = `${formatTime(elapsed)} / ${formatTime(playDuration)}`;
+      animationFrame = requestAnimationFrame(drawVisualizer);
+    }
+
+    function writeString(view, offset, string) {
+      for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
+    }
+
+    function audioBufferToWav(buffer) {
+      const channels = buffer.numberOfChannels;
+      const sampleRate = buffer.sampleRate;
+      const length = buffer.length * channels * 2 + 44;
+      const arrayBuffer = new ArrayBuffer(length);
+      const view = new DataView(arrayBuffer);
+      writeString(view, 0, 'RIFF');
+      view.setUint32(4, 36 + buffer.length * channels * 2, true);
+      writeString(view, 8, 'WAVE');
+      writeString(view, 12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, channels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * channels * 2, true);
+      view.setUint16(32, channels * 2, true);
+      view.setUint16(34, 16, true);
+      writeString(view, 36, 'data');
+      view.setUint32(40, buffer.length * channels * 2, true);
+
+      const channelData = [];
+      for (let c = 0; c < channels; c++) channelData.push(buffer.getChannelData(c));
+      let offset = 44;
+      for (let i = 0; i < buffer.length; i++) {
+        for (let c = 0; c < channels; c++) {
+          const sample = Math.max(-1, Math.min(1, channelData[c][i]));
+          view.setInt16(offset, sample < 0 ? sample * 32768 : sample * 32767, true);
+          offset += 2;
+        }
+      }
+      return new Blob([view], { type: 'audio/wav' });
+    }
+
+    async function exportWav() {
+      const settings = getSettings();
+      if (!window.OfflineAudioContext && !window.webkitOfflineAudioContext) {
+        ui.status.textContent = '이 브라우저는 WAV 렌더링을 지원하지 않습니다.';
+        return;
+      }
+      ui.exportBtn.disabled = true;
+      ui.playBtn.disabled = true;
+      ui.status.textContent = 'WAV 파일을 코드로 렌더링하는 중입니다…';
+
+      try {
+        const sampleRate = 44100;
+        const tail = 5;
+        const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        const offline = new OfflineCtx(2, Math.ceil((settings.duration + tail) * sampleRate), sampleRate);
+        const out = offline.createGain();
+        out.gain.value = 0.78;
+        out.connect(offline.destination);
+        buildArrangement(offline, out, settings, 0.05);
+        const rendered = await offline.startRendering();
+        const wav = audioBufferToWav(rendered);
+        const url = URL.createObjectURL(wav);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${titleFor(settings).replace(/[\\/:*?"<>|]/g, '_')}.wav`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        ui.status.textContent = 'WAV 저장이 완료되었습니다.';
+      } catch (error) {
+        console.error(error);
+        ui.status.textContent = 'WAV 렌더링 중 오류가 발생했습니다. 곡 길이를 줄여 다시 시도해 주세요.';
+      } finally {
+        ui.exportBtn.disabled = false;
+        ui.playBtn.disabled = false;
+      }
+    }
+
+    function randomSeed() {
+      const wordsA = ['stone', 'silent', 'midnight', 'amber', 'temple', 'rain', 'moon', 'smoke'];
+      const wordsB = ['lantern', 'corridor', 'bell', 'tea', 'shadow', 'window', 'incense', 'dream'];
+      const rand = crypto.getRandomValues(new Uint32Array(2));
+      ui.seed.value = `${wordsA[rand[0] % wordsA.length]}-${wordsB[rand[1] % wordsB.length]}-${String(rand[0] % 100).padStart(2, '0')}`;
+      refreshMeta();
+      ui.status.textContent = '새 시드가 만들어졌습니다. 같은 시드는 항상 같은 곡을 생성합니다.';
+    }
+
+    ui.bpm.addEventListener('input', () => { ui.bpmOut.textContent = ui.bpm.value; refreshMeta(); });
+    ui.density.addEventListener('input', () => { ui.densityOut.textContent = ui.density.value; });
+    [ui.preset, ui.key, ui.duration, ui.seed].forEach((el) => el.addEventListener('change', refreshMeta));
+    ui.seed.addEventListener('input', refreshMeta);
+    ui.playBtn.addEventListener('click', startPlayback);
+    ui.stopBtn.addEventListener('click', () => stopPlayback(false));
+    ui.newSeedBtn.addEventListener('click', randomSeed);
+    ui.exportBtn.addEventListener('click', exportWav);
+    window.addEventListener('resize', () => { if (!playing) drawIdle(); });
+    window.addEventListener('beforeunload', () => stopPlayback(false));
+
+    refreshMeta();
+    drawIdle();
+  </script>
+</body>
+</html>
