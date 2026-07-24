@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#15120f" />
-  <title>코드 뮤직 제너레이터 DUAL MODE v3</title>
+  <title>코드 뮤직 제너레이터 DUAL MODE v4</title>
   <style>
     :root {
       --bg: #0c0b0a;
@@ -356,9 +356,9 @@
   <section class="app">
     <header>
       <div>
-        <div class="version-badge">DUAL MODE · v3</div>
+        <div class="version-badge">DUAL MODE · v4 · CLEAN PIANO ENGINE</div>
         <h1>코드 뮤직 제너레이터</h1>
-        <p class="subtitle">외부 음원 없이 Web Audio API로 명상 음악과 고전 피아노곡을 작곡합니다. 아래 버튼으로 두 작곡 모드를 즉시 전환할 수 있습니다.</p>
+        <p class="subtitle">외부 음원 없이 Web Audio API로 명상 음악과 서사형 피아노곡을 작곡합니다. v4는 클릭 노이즈 제거, 피아노 공명 개선, 과출력 방지 믹싱을 적용했습니다.</p>
         <div class="mode-strip" role="tablist" aria-label="음악 모드">
           <button id="meditationModeBtn" class="mode-btn active" type="button">🧘 명상 모드</button>
           <button id="classicalModeBtn" class="mode-btn" type="button">🎹 클래식 피아노 모드</button>
@@ -420,6 +420,14 @@
               </select>
             </div>
           </div>
+          <div style="margin-top:11px">
+            <label for="pianoTone">피아노 음색</label>
+            <select id="pianoTone">
+              <option value="concert">따뜻한 콘서트 그랜드</option>
+              <option value="felt">부드러운 펠트 피아노</option>
+              <option value="clear">맑은 실내 그랜드</option>
+            </select>
+          </div>
         </div>
 
         <div class="grid-2">
@@ -470,6 +478,14 @@
         </div>
 
         <div>
+          <label for="volume">출력 음량</label>
+          <div class="range-row">
+            <input id="volume" type="range" min="25" max="100" value="78" />
+            <output id="volumeOut">78</output>
+          </div>
+        </div>
+
+        <div>
           <label for="seed">곡 시드</label>
           <input id="seed" type="text" value="stone-lantern-01" maxlength="48" />
         </div>
@@ -482,7 +498,7 @@
         </div>
 
         <div id="status" class="status">모드를 선택하고 재생하면 브라우저가 즉시 곡을 합성합니다.</div>
-        <div class="note">클래식 모드는 기존 작품의 음표를 복제하지 않습니다. 각 작곡가의 공개적으로 알려진 형식적 특징을 규칙으로 추상화해 매번 새로운 주제와 화성을 생성합니다. 피아노 음색도 샘플 없이 코드로 합성합니다.</div>
+        <div class="note">클래식 모드는 기존 작품의 음표를 복제하지 않습니다. 노래처럼 들리도록 주제–응답–발전–절정–회귀를 유지하며, 음표마다 무작위 불협을 넣지 않고 현재 화성에 맞춰 선율을 진행합니다. 피아노 음색은 샘플 없이 코드로 합성하되 시작·종료를 부드럽게 처리합니다.</div>
       </section>
     </main>
   </section>
@@ -495,9 +511,9 @@
       meditationModeBtn: $('meditationModeBtn'), classicalModeBtn: $('classicalModeBtn'),
       meditationControls: $('meditationControls'), classicalControls: $('classicalControls'),
       dramaControl: $('dramaControl'), densityLabel: $('densityLabel'),
-      preset: $('preset'), composer: $('composer'), movement: $('movement'), key: $('key'),
-      duration: $('duration'), bpm: $('bpm'), density: $('density'), drama: $('drama'), seed: $('seed'),
-      bpmOut: $('bpmOut'), densityOut: $('densityOut'), dramaOut: $('dramaOut'),
+      preset: $('preset'), composer: $('composer'), movement: $('movement'), pianoTone: $('pianoTone'), key: $('key'),
+      duration: $('duration'), bpm: $('bpm'), density: $('density'), drama: $('drama'), volume: $('volume'), seed: $('seed'),
+      bpmOut: $('bpmOut'), densityOut: $('densityOut'), dramaOut: $('dramaOut'), volumeOut: $('volumeOut'),
       playBtn: $('playBtn'), stopBtn: $('stopBtn'), newSeedBtn: $('newSeedBtn'), exportBtn: $('exportBtn'),
       status: $('status'), livePill: $('livePill'), trackName: $('trackName'), trackMeta: $('trackMeta'),
       clock: $('clock'), canvas: $('visualizer'), formBadge: $('formBadge'), narrative: $('narrative')
@@ -528,19 +544,19 @@
 
     const COMPOSERS = {
       mahler: {
-        label: '말러적 서사', motifLength: 5, chromaticism: .48, octaveSpan: 2, accent: .28,
+        label: '말러적 서사', motifLength: 7, chromaticism: .18, octaveSpan: 2, accent: .28,
         cadenceDelay: .62, leftPattern: 'arches', rubato: .85,
         names: ['먼 산 너머의 회상', '부서진 행진곡의 끝', '밤과 새벽 사이의 아다지오', '대지의 마지막 질문'],
         description: '작은 동기가 먼 조성으로 떠돌며 확대되고, 긴 침묵 뒤 거대한 절정과 조용한 회귀를 만듭니다.'
       },
       beethoven: {
-        label: '베토벤적 동기', motifLength: 4, chromaticism: .24, octaveSpan: 2, accent: .58,
+        label: '베토벤적 동기', motifLength: 4, chromaticism: .08, octaveSpan: 2, accent: .58,
         cadenceDelay: .28, leftPattern: 'octaves', rubato: .3,
         names: ['운명에 맞서는 네 음', '폭풍 뒤의 결의', '돌문을 두드리는 주제', '승리를 향한 변주'],
         description: '짧고 강한 리듬 동기를 집요하게 반복·전조·분절하며 대립과 승리의 방향으로 밀어붙입니다.'
       },
       mozart: {
-        label: '모차르트적 균형', motifLength: 6, chromaticism: .12, octaveSpan: 1, accent: .2,
+        label: '모차르트적 균형', motifLength: 8, chromaticism: .03, octaveSpan: 1, accent: .2,
         cadenceDelay: .12, leftPattern: 'alberti', rubato: .12,
         names: ['정원의 작은 세레나데', '햇빛 속의 론도', '유리창 너머의 소나티나', '가벼운 미소의 변주'],
         description: '질문과 응답이 대칭을 이루고, 명료한 화성·알베르티 베이스·정돈된 종지로 자연스럽게 완결됩니다.'
@@ -554,12 +570,19 @@
       serene: { label: '맑고 고전적', mode: 'major', baseBpm: 88, energy: .58, lyricism: .82 }
     };
 
+    const PIANO_TONES = {
+      concert: { id: 'concert', label: '따뜻한 콘서트 그랜드', brightness: .82, release: 1.0, body: 1.0, room: .14 },
+      felt: { id: 'felt', label: '부드러운 펠트 피아노', brightness: .55, release: 1.18, body: .9, room: .18 },
+      clear: { id: 'clear', label: '맑은 실내 그랜드', brightness: 1.04, release: .84, body: .92, room: .1 }
+    };
+
     const MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11];
     const MINOR_SCALE = [0, 2, 3, 5, 7, 8, 10];
 
     let mode = 'meditation';
     let audioCtx = null;
     let master = null;
+    let masterFade = null;
     let analyser = null;
     let activeNodes = [];
     let timers = [];
@@ -568,6 +591,7 @@
     let playDuration = 0;
     let playing = false;
     let currentSections = [];
+    const pianoWaveCache = new WeakMap();
 
     class RNG {
       constructor(seedText) {
@@ -611,11 +635,14 @@
         composer,
         movementKey: ui.movement.value,
         movement,
+        pianoToneKey: ui.pianoTone.value,
+        pianoTone: PIANO_TONES[ui.pianoTone.value],
         root: Number(ui.key.value),
         duration: Number(ui.duration.value),
         bpm: Number(ui.bpm.value),
         density: Number(ui.density.value),
         drama: Number(ui.drama.value),
+        volume: Number(ui.volume.value),
         seed: ui.seed.value.trim() || 'untitled-seed'
       };
     }
@@ -635,7 +662,7 @@
       const settings = getSettings();
       ui.trackName.textContent = titleFor(settings);
       if (settings.mode === 'classical') {
-        ui.trackMeta.textContent = `${settings.composer.label} · ${settings.movement.label} · ${keyName(settings.root)} ${settings.movement.mode === 'major' ? '장조' : '단조'} · ${settings.bpm} BPM`;
+        ui.trackMeta.textContent = `${settings.composer.label} · ${settings.movement.label} · ${settings.pianoTone.label} · ${keyName(settings.root)} ${settings.movement.mode === 'major' ? '장조' : '단조'} · ${settings.bpm} BPM`;
         ui.narrative.textContent = settings.composer.description;
       } else {
         ui.trackMeta.textContent = `${settings.preset.label} · ${keyName(settings.root)} 오음계 · ${settings.bpm} BPM`;
@@ -676,15 +703,25 @@
       return node;
     }
 
-    function createImpulse(context, seconds = 4.4, decay = 3.35, seed = 'reverb') {
-      const length = Math.floor(context.sampleRate * seconds);
+    function createImpulse(context, seconds = 3.2, decay = 3.7, seed = 'reverb') {
+      const length = Math.max(1, Math.floor(context.sampleRate * seconds));
       const impulse = context.createBuffer(2, length, context.sampleRate);
       const rng = new RNG(seed);
+      const reflectionTimes = [.019, .031, .047, .071, .103];
       for (let channel = 0; channel < 2; channel++) {
         const data = impulse.getChannelData(channel);
+        let low = 0;
         for (let i = 0; i < length; i++) {
-          data[i] = rng.signed() * Math.pow(1 - i / length, decay);
+          const progress = i / length;
+          const white = rng.signed();
+          low = low * .86 + white * .14;
+          const envelope = Math.pow(1 - progress, decay);
+          data[i] = (low * .58 + white * .045) * envelope;
         }
+        reflectionTimes.forEach((time, index) => {
+          const sample = Math.min(length - 2, Math.floor((time + channel * .0017) * context.sampleRate));
+          data[sample] += (.42 / (index + 1)) * (channel ? -.92 : 1);
+        });
       }
       return impulse;
     }
@@ -693,25 +730,57 @@
       const input = context.createGain();
       const dry = context.createGain();
       const convolver = context.createConvolver();
+      const wetFilter = context.createBiquadFilter();
       const wet = context.createGain();
-      const filter = context.createBiquadFilter();
+      const sum = context.createGain();
+      const highpass = context.createBiquadFilter();
+      const lowpass = context.createBiquadFilter();
       const compressor = context.createDynamicsCompressor();
 
-      convolver.buffer = createImpulse(context, options.reverbTime || 4.4, options.decay || 3.35, options.seed || 'reverb');
-      dry.gain.value = options.dry ?? .82;
-      wet.gain.value = options.wet ?? .31;
-      filter.type = 'lowpass';
-      filter.frequency.value = options.cutoff || 11200;
-      compressor.threshold.value = -17;
-      compressor.knee.value = 19;
-      compressor.ratio.value = 4;
-      compressor.attack.value = .008;
-      compressor.release.value = .28;
+      convolver.buffer = createImpulse(context, options.reverbTime || 3.2, options.decay || 3.7, options.seed || 'reverb');
+      dry.gain.value = options.dry ?? .9;
+      wet.gain.value = options.wet ?? .14;
+      wetFilter.type = 'lowpass';
+      wetFilter.frequency.value = options.reverbCutoff || 5600;
+      wetFilter.Q.value = .3;
+      highpass.type = 'highpass';
+      highpass.frequency.value = options.highpass || 28;
+      highpass.Q.value = .5;
+      lowpass.type = 'lowpass';
+      lowpass.frequency.value = options.cutoff || 10800;
+      lowpass.Q.value = .35;
+      compressor.threshold.value = options.threshold || -13;
+      compressor.knee.value = 16;
+      compressor.ratio.value = options.ratio || 3.2;
+      compressor.attack.value = .012;
+      compressor.release.value = .32;
 
-      input.connect(dry).connect(filter);
-      input.connect(convolver).connect(wet).connect(filter);
-      filter.connect(compressor).connect(destination);
+      input.connect(dry).connect(sum);
+      input.connect(convolver).connect(wetFilter).connect(wet).connect(sum);
+      sum.connect(highpass).connect(lowpass).connect(compressor).connect(destination);
       return input;
+    }
+
+    function createOutputChain(context, destination, settings) {
+      const input = context.createGain();
+      const highpass = context.createBiquadFilter();
+      const lowpass = context.createBiquadFilter();
+      const compressor = context.createDynamicsCompressor();
+      const output = context.createGain();
+      highpass.type = 'highpass';
+      highpass.frequency.value = 24;
+      highpass.Q.value = .5;
+      lowpass.type = 'lowpass';
+      lowpass.frequency.value = settings.mode === 'classical' ? 11800 : 10400;
+      lowpass.Q.value = .25;
+      compressor.threshold.value = -11;
+      compressor.knee.value = 18;
+      compressor.ratio.value = 5;
+      compressor.attack.value = .006;
+      compressor.release.value = .24;
+      output.gain.value = clamp(settings.volume / 100, .25, 1) * (settings.mode === 'classical' ? .96 : .9);
+      input.connect(highpass).connect(lowpass).connect(compressor).connect(output).connect(destination);
+      return { input, output };
     }
 
     function scheduleOsc(context, destination, options) {
@@ -746,72 +815,77 @@
       return { osc, gain };
     }
 
-    function addPianoNote(context, destination, midi, start, duration, velocity = .7, brightness = .55, panValue = 0) {
-      const frequency = midiToHz(midi);
-      const noteGain = context.createGain();
-      const toneFilter = context.createBiquadFilter();
-      const panner = context.createStereoPanner ? context.createStereoPanner() : context.createGain();
-      const end = start + duration;
-      const decayTime = Math.max(.22, duration * .78);
-      const volume = .052 * velocity;
-
-      toneFilter.type = 'lowpass';
-      toneFilter.frequency.setValueAtTime(1600 + brightness * 4700 + (midi - 48) * 24, start);
-      toneFilter.Q.value = .72;
-      if (panner.pan) panner.pan.setValueAtTime(clamp(panValue, -.8, .8), start);
-
-      noteGain.gain.setValueAtTime(.0001, start);
-      noteGain.gain.exponentialRampToValueAtTime(Math.max(.0002, volume), start + .007);
-      noteGain.gain.exponentialRampToValueAtTime(Math.max(.00012, volume * .22), start + Math.min(decayTime, .58));
-      noteGain.gain.exponentialRampToValueAtTime(.0001, end + .32);
-
-      const partials = [
-        { ratio: 1, amp: 1, type: 'triangle', detune: -1.7 },
-        { ratio: 2.01, amp: .3, type: 'sine', detune: 1.2 },
-        { ratio: 3.98, amp: .12, type: 'sine', detune: -.7 },
-        { ratio: 6.02, amp: .045, type: 'sine', detune: 2.1 }
-      ];
-
-      partials.forEach((partial, index) => {
-        const osc = context.createOscillator();
-        const partialGain = context.createGain();
-        osc.type = partial.type;
-        osc.frequency.setValueAtTime(frequency * partial.ratio, start);
-        osc.detune.setValueAtTime(partial.detune, start);
-        partialGain.gain.value = partial.amp * (1 - index * .05);
-        osc.connect(partialGain).connect(toneFilter);
-        osc.start(start);
-        osc.stop(end + .36);
-        trackNode(context, osc);
-      });
-
-      const hammerLength = Math.max(1, Math.floor(context.sampleRate * .018));
-      const hammerBuffer = context.createBuffer(1, hammerLength, context.sampleRate);
-      const hammerData = hammerBuffer.getChannelData(0);
-      for (let i = 0; i < hammerLength; i++) hammerData[i] = (Math.random() * 2 - 1) * (1 - i / hammerLength);
-      const hammer = context.createBufferSource();
-      const hammerFilter = context.createBiquadFilter();
-      const hammerGain = context.createGain();
-      hammer.buffer = hammerBuffer;
-      hammerFilter.type = 'bandpass';
-      hammerFilter.frequency.value = 1200 + brightness * 3400;
-      hammerFilter.Q.value = .8;
-      hammerGain.gain.setValueAtTime(.035 * velocity, start);
-      hammerGain.gain.exponentialRampToValueAtTime(.0001, start + .035);
-      hammer.connect(hammerFilter).connect(hammerGain).connect(panner);
-      hammer.start(start);
-      hammer.stop(start + .04);
-      trackNode(context, hammer);
-
-      toneFilter.connect(noteGain).connect(panner).connect(destination);
-      trackNode(context, noteGain);
+    function getPianoWave(context, brightness, tone) {
+      let cache = pianoWaveCache.get(context);
+      if (!cache) {
+        cache = new Map();
+        pianoWaveCache.set(context, cache);
+      }
+      const bucket = clamp(Math.round(brightness * tone.brightness * 4), 1, 5);
+      const key = `${tone.id}-${bucket}`;
+      if (cache.has(key)) return cache.get(key);
+      const real = new Float32Array(12);
+      const imag = new Float32Array(12);
+      const bright = bucket / 5;
+      const base = [0, 1, .34, .19, .115, .073, .048, .032, .021, .014, .009, .006];
+      for (let harmonic = 1; harmonic < base.length; harmonic++) {
+        const rolloff = Math.pow(.55 + bright * .45, harmonic - 1);
+        const amplitude = base[harmonic] * rolloff;
+        const phase = harmonic % 2 === 0 ? .12 : -.045;
+        real[harmonic] = amplitude * Math.sin(phase);
+        imag[harmonic] = amplitude * Math.cos(phase);
+      }
+      const wave = context.createPeriodicWave(real, imag, { disableNormalization: false });
+      cache.set(key, wave);
+      return wave;
     }
 
-    function addPianoChord(context, destination, notes, start, duration, velocity, brightness, spread = .014) {
+    function addPianoNote(context, destination, midi, start, duration, velocity = .7, brightness = .55, panValue = 0, tone = PIANO_TONES.concert) {
+      const safeStart = Math.max(context.currentTime || 0, start);
+      const keyDuration = Math.max(.09, duration);
+      const keyOff = safeStart + keyDuration;
+      const release = clamp((.34 + Math.max(0, 70 - midi) * .012) * tone.release, .24, 1.3);
+      const releaseEnd = keyOff + release;
+      const oscillator = context.createOscillator();
+      const filter = context.createBiquadFilter();
+      const gain = context.createGain();
+      const panner = context.createStereoPanner ? context.createStereoPanner() : context.createGain();
+      const pitchCompensation = clamp(1.08 - (midi - 48) * .0048, .72, 1.12);
+      const peak = Math.max(.0004, .16 * clamp(velocity, .08, 1) * tone.body * pitchCompensation);
+      const attack = .006 + (1 - clamp(velocity, 0, 1)) * .006;
+      const decayPoint = Math.min(keyOff - .018, safeStart + Math.max(attack + .035, Math.min(.38, keyDuration * .55)));
+      const bodyLevel = Math.max(.00025, peak * (.46 + (1 - brightness) * .08));
+      const initialCutoff = clamp(2350 + brightness * tone.brightness * 4300 + (midi - 48) * 22, 1700, 9200);
+      const bodyCutoff = clamp(1050 + brightness * tone.brightness * 1900 + (midi - 48) * 10, 800, 4200);
+
+      oscillator.setPeriodicWave(getPianoWave(context, brightness, tone));
+      oscillator.frequency.setValueAtTime(midiToHz(midi), safeStart);
+      oscillator.detune.setValueAtTime(midi % 2 ? .35 : -.35, safeStart);
+      filter.type = 'lowpass';
+      filter.Q.value = .38;
+      filter.frequency.setValueAtTime(initialCutoff, safeStart);
+      filter.frequency.exponentialRampToValueAtTime(bodyCutoff, Math.min(releaseEnd, safeStart + .16));
+      if (panner.pan) panner.pan.setValueAtTime(clamp(panValue, -.42, .42), safeStart);
+
+      gain.gain.setValueAtTime(.00001, safeStart);
+      gain.gain.linearRampToValueAtTime(peak, safeStart + attack);
+      if (decayPoint > safeStart + attack + .005) gain.gain.exponentialRampToValueAtTime(bodyLevel, decayPoint);
+      if (keyOff > decayPoint + .004) gain.gain.exponentialRampToValueAtTime(Math.max(.0002, bodyLevel * .88), keyOff);
+      gain.gain.exponentialRampToValueAtTime(.00001, releaseEnd);
+
+      oscillator.connect(filter).connect(gain).connect(panner).connect(destination);
+      oscillator.start(safeStart);
+      oscillator.stop(releaseEnd + .045);
+      trackNode(context, oscillator);
+      return releaseEnd;
+    }
+
+    function addPianoChord(context, destination, notes, start, duration, velocity, brightness, spread = .014, tone = PIANO_TONES.concert) {
+      const normalization = 1 / Math.sqrt(Math.max(1, notes.length / 2.7));
       notes.forEach((midi, index) => {
         const offset = index * spread;
-        const pan = notes.length <= 1 ? 0 : -0.28 + index / (notes.length - 1) * .56;
-        addPianoNote(context, destination, midi, start + offset, duration - offset, velocity * (1 - index * .035), brightness, pan);
+        const pan = notes.length <= 1 ? 0 : -.25 + index / (notes.length - 1) * .5;
+        addPianoNote(context, destination, midi, start + offset, Math.max(.1, duration - offset), velocity * normalization * (1 - index * .022), brightness, pan, tone);
       });
     }
 
@@ -975,24 +1049,38 @@
     }
 
     function createMotif(settings, rng) {
-      const composer = settings.composer;
-      const length = composer.motifLength;
-      const degrees = [0];
-      const rhythms = [];
-      for (let i = 1; i < length; i++) {
-        const leapChance = composer === COMPOSERS.mahler ? .38 : composer === COMPOSERS.beethoven ? .22 : .16;
-        const delta = rng.chance(leapChance) ? rng.pick([-4, -3, 3, 4, 5]) : rng.pick([-2, -1, 0, 1, 2]);
-        degrees.push(clamp(degrees[i - 1] + delta, -3, 8));
-      }
-      if (settings.composerKey === 'beethoven') {
-        rhythms.push(.5, .5, .5, 1.5);
-        while (rhythms.length < length) rhythms.push(rng.pick([.5, 1]));
-      } else if (settings.composerKey === 'mozart') {
-        for (let i = 0; i < length; i++) rhythms.push(i === length - 1 ? 1.5 : rng.pick([.5, .5, 1]));
-      } else {
-        for (let i = 0; i < length; i++) rhythms.push(i === length - 1 ? 2 : rng.pick([.5, 1, 1.5]));
-      }
-      return { degrees, rhythms };
+      const contours = {
+        mahler: [
+          [0, 1, 3, 5, 4, 2, 0],
+          [0, 2, 4, 3, 1, -1, 0],
+          [0, -1, 1, 4, 3, 1, 0]
+        ],
+        beethoven: [
+          [0, 0, 1, -1],
+          [0, 1, 0, -2],
+          [0, 0, -1, 2]
+        ],
+        mozart: [
+          [0, 1, 2, 4, 3, 2, 1, 0],
+          [0, 2, 1, 3, 4, 2, 1, 0],
+          [0, 1, 3, 2, 4, 3, 1, 0]
+        ]
+      };
+      const rhythmSets = {
+        mahler: [
+          [1, .5, .5, 1.5, .5, 1, 2],
+          [.5, 1, .5, 1, 1.5, .5, 2]
+        ],
+        beethoven: [[.5, .5, .5, 1.5], [.75, .25, .5, 1.5]],
+        mozart: [
+          [.5, .5, 1, .5, .5, 1, 1, 2],
+          [.5, 1, .5, .5, .5, 1, 1, 2]
+        ]
+      };
+      return {
+        degrees: rng.pick(contours[settings.composerKey]).slice(),
+        rhythms: rng.pick(rhythmSets[settings.composerKey]).slice()
+      };
     }
 
     function transformMotif(motif, type, amount = 0) {
@@ -1024,54 +1112,57 @@
       const velocity = options.velocity ?? .7;
       const brightness = options.brightness ?? .58;
       const articulation = options.articulation ?? .92;
+      const degreeOffset = options.degreeOffset || 0;
       let cursor = start;
       motif.degrees.forEach((degree, index) => {
-        const chromatic = rng.chance((options.chromaticism ?? settings.composer.chromaticism) * (options.tension ?? .5));
-        const accidental = chromatic ? rng.pick([-1, 1]) : 0;
-        const midi = degreeToMidi(degree, settings.root, scale, register) + accidental + (options.octaveShift || 0);
+        const isBoundary = index === 0 || index === motif.degrees.length - 1;
+        const chromaticChance = (options.chromaticism ?? settings.composer.chromaticism) * (options.tension ?? .5) * .22;
+        const accidental = !isBoundary && rng.chance(chromaticChance) ? rng.pick([-1, 1]) : 0;
+        const phraseDegree = degree + degreeOffset;
+        const midi = degreeToMidi(phraseDegree, settings.root, scale, register) + accidental + (options.octaveShift || 0);
         const rhythm = motif.rhythms[index % motif.rhythms.length];
-        const noteLength = Math.max(.09, rhythm * beat * articulation);
+        const noteLength = Math.max(.1, rhythm * beat * articulation);
         const noteStart = humanizedTime(cursor, beat, settings.composer.rubato, rng, index);
-        const accent = settings.composerKey === 'beethoven' && index === 0 ? 1.18 : 1;
-        addPianoNote(context, bus, midi, noteStart, noteLength, clamp(velocity * accent, .15, 1), brightness, clamp((midi - 66) / 42, -.45, .45));
-        if (options.octaveDouble && (index === 0 || rng.chance(.35))) {
-          addPianoNote(context, bus, midi - 12, noteStart + .006, noteLength, velocity * .42, brightness * .82, -.24);
+        const accent = settings.composerKey === 'beethoven' && index === 0 ? 1.12 : 1;
+        addPianoNote(context, bus, midi, noteStart, noteLength, clamp(velocity * accent, .12, .92), brightness, clamp((midi - 66) / 50, -.34, .34), settings.pianoTone);
+        if (options.octaveDouble && (index === 0 || rng.chance(.25))) {
+          addPianoNote(context, bus, midi - 12, noteStart + .009, noteLength, velocity * .3, brightness * .82, -.2, settings.pianoTone);
         }
         cursor += rhythm * beat;
       });
       return cursor;
     }
 
-    function addAlbertiBass(context, bus, chord, start, beats, beat, velocity, brightness) {
+    function addAlbertiBass(context, bus, chord, start, beats, beat, velocity, brightness, tone) {
       const pattern = [0, 2, 1, 2];
       const eighth = beat / 2;
       for (let i = 0; i < beats * 2; i++) {
         const note = chord[pattern[i % pattern.length]] - 12;
-        addPianoNote(context, bus, note, start + i * eighth, eighth * .84, velocity, brightness, -.32);
+        addPianoNote(context, bus, note, start + i * eighth, eighth * .82, velocity, brightness, -.29, tone);
       }
     }
 
-    function addOctavePulse(context, bus, rootMidi, start, beats, beat, velocity, rng) {
+    function addOctavePulse(context, bus, rootMidi, start, beats, beat, velocity, rng, tone) {
       for (let i = 0; i < beats; i++) {
         const strong = i % 4 === 0 ? 1.2 : .78;
-        addPianoChord(context, bus, [rootMidi - 24, rootMidi - 12], start + i * beat, beat * .7, velocity * strong, .48, .008);
-        if (rng.chance(.24) && i % 2 === 1) addPianoNote(context, bus, rootMidi - 5, start + i * beat + beat * .5, beat * .35, velocity * .42, .45, -.2);
+        addPianoChord(context, bus, [rootMidi - 24, rootMidi - 12], start + i * beat, beat * .66, velocity * strong, .42, .012, tone);
+        if (rng.chance(.24) && i % 2 === 1) addPianoNote(context, bus, rootMidi - 5, start + i * beat + beat * .5, beat * .32, velocity * .34, .4, -.18, tone);
       }
     }
 
-    function addArchBass(context, bus, chord, start, beats, beat, velocity, rng, tension = .4) {
+    function addArchBass(context, bus, chord, start, beats, beat, velocity, rng, tension = .4, tone) {
       const pattern = [0, 1, 2, 1, 0, 2, 1, 2];
       for (let i = 0; i < beats * 2; i++) {
         let note = chord[pattern[i % pattern.length]] - 24;
         if (tension > .65 && rng.chance(.16)) note += rng.pick([-1, 1]);
-        addPianoNote(context, bus, note, start + i * beat / 2, beat * .43, velocity * (i % 4 === 0 ? 1.05 : .7), .43, -.34);
+        addPianoNote(context, bus, note, start + i * beat / 2, beat * .4, velocity * (i % 4 === 0 ? .98 : .64), .38, -.3, tone);
       }
     }
 
     function addLeftHandPattern(context, bus, settings, chord, start, beats, beat, velocity, rng, tension) {
-      if (settings.composer.leftPattern === 'alberti') addAlbertiBass(context, bus, chord, start, beats, beat, velocity, .53);
-      else if (settings.composer.leftPattern === 'octaves') addOctavePulse(context, bus, chord[0], start, beats, beat, velocity, rng);
-      else addArchBass(context, bus, chord, start, beats, beat, velocity, rng, tension);
+      if (settings.composer.leftPattern === 'alberti') addAlbertiBass(context, bus, chord, start, beats, beat, velocity, .48, settings.pianoTone);
+      else if (settings.composer.leftPattern === 'octaves') addOctavePulse(context, bus, chord[0], start, beats, beat, velocity, rng, settings.pianoTone);
+      else addArchBass(context, bus, chord, start, beats, beat, velocity, rng, tension, settings.pianoTone);
     }
 
     function sectionPlan(duration, beat) {
@@ -1102,14 +1193,36 @@
       return minor ? [0, 5, 2, 4, -2, 3, 0] : [0, 2, 5, 3, -2, 4, 0];
     }
 
+    function phraseProgression(settings, sectionIndex) {
+      const plans = settings.movement.mode === 'minor' ? [
+        [0, 3, 4, 0],
+        [3, 1, 4, 0],
+        [5, 2, 4, 0],
+        [5, 3, 1, 4],
+        [1, 4, 5, 4],
+        [0, 3, 4, 0]
+      ] : [
+        [0, 3, 4, 0],
+        [3, 1, 4, 0],
+        [5, 1, 4, 0],
+        [5, 2, 3, 4],
+        [1, 4, 5, 4],
+        [0, 3, 4, 0]
+      ];
+      return plans[sectionIndex] || plans[0];
+    }
+
     function buildClassicalArrangement(context, destination, settings, startAt = 0) {
       const rng = new RNG(`${settings.seed}|${settings.composerKey}|${settings.movementKey}`);
       const bus = buildBus(context, destination, {
-        wet: settings.composerKey === 'mahler' ? .24 : .18,
-        dry: .9,
-        cutoff: 13200,
-        reverbTime: settings.composerKey === 'mahler' ? 4.8 : 3.4,
-        decay: 3.2,
+        wet: settings.pianoTone.room + (settings.composerKey === 'mahler' ? .035 : 0),
+        dry: .94,
+        cutoff: 11200,
+        reverbCutoff: settings.pianoToneKey === 'clear' ? 6500 : 5200,
+        reverbTime: settings.composerKey === 'mahler' ? 3.8 : 2.9,
+        decay: 4.05,
+        threshold: -12,
+        ratio: 2.8,
         seed: `${settings.seed}-piano-room`
       });
       const beat = 60 / settings.bpm;
@@ -1133,12 +1246,12 @@
       };
 
       const sectionConfigs = [
-        { motif: variants.theme, register: 12, velocity: .58, tension: .18, brightness: .56, left: .34 },
-        { motif: variants.answer, register: 12, velocity: .64, tension: .3, brightness: .6, left: .38 },
-        { motif: variants.development, register: 12, velocity: .68, tension: .65, brightness: .64, left: .45 },
-        { motif: variants.abyss, register: settings.composerKey === 'mahler' ? 0 : 12, velocity: .48, tension: .74, brightness: .42, left: .29 },
-        { motif: variants.climax, register: 24, velocity: .78 + drama * .16, tension: .95, brightness: .78, left: .62 },
-        { motif: variants.return, register: 12, velocity: .5, tension: .12, brightness: .5, left: .3 }
+        { motif: variants.theme, register: 12, velocity: .5, tension: .12, brightness: .54, left: .23 },
+        { motif: variants.answer, register: 12, velocity: .54, tension: .22, brightness: .58, left: .26 },
+        { motif: variants.development, register: 12, velocity: .58, tension: .5, brightness: .62, left: .31 },
+        { motif: variants.abyss, register: settings.composerKey === 'mahler' ? 0 : 12, velocity: .4, tension: .58, brightness: .4, left: .2 },
+        { motif: variants.climax, register: 24, velocity: .62 + drama * .1, tension: .72, brightness: .72, left: .4 },
+        { motif: variants.return, register: 12, velocity: .44, tension: .08, brightness: .48, left: .2 }
       ];
 
       sections.forEach((section, sectionIndex) => {
@@ -1150,15 +1263,20 @@
         const phraseBeats = config.motif.rhythms.reduce((sum, value) => sum + value, 0);
         const phraseDuration = phraseBeats * beat;
         const baseDegree = harmony[sectionIndex % harmony.length];
+        const progression = phraseProgression(settings, sectionIndex);
 
         while (cursor < sectionEnd - beat * 1.2) {
           const localProgress = (cursor - sectionStart) / Math.max(.001, sectionEnd - sectionStart);
-          const harmonicDegree = baseDegree + (phraseIndex % 3 === 1 ? 4 : phraseIndex % 3 === 2 ? 3 : 0);
+          const harmonicDegree = progression[phraseIndex % progression.length] + (sectionIndex === 2 && phraseIndex % 4 === 2 ? baseDegree : 0);
           const extension = settings.composerKey === 'mahler' && config.tension > .5;
           const chord = chordFromDegree(settings.root, scale, harmonicDegree, 0, extension);
           const beatsAvailable = Math.max(2, Math.min(4, (sectionEnd - cursor) / beat));
           const dynamicArc = .74 + Math.sin(localProgress * Math.PI) * (.22 + drama * .18);
-          addLeftHandPattern(context, bus, settings, chord, cursor, beatsAvailable, beat, config.left * energy * dynamicArc, rng, config.tension);
+          addLeftHandPattern(context, bus, settings, chord, cursor, beatsAvailable, beat, config.left * (.78 + energy * .22) * dynamicArc, rng, config.tension);
+          if (phraseIndex % 2 === 0 && settings.composerKey !== 'beethoven' && sectionIndex !== 4) {
+            const support = chord.slice(0, 3).map((note) => note + 12);
+            addPianoChord(context, bus, support, cursor + beat * .05, Math.min(bar * .88, sectionEnd - cursor), .16 * dynamicArc, .42, .022, settings.pianoTone);
+          }
 
           let phrase = config.motif;
           if (sectionIndex === 2 && phraseIndex % 3 === 1) phrase = transformMotif(config.motif, 'invert', rng.pick([-2, 0, 2]));
@@ -1172,14 +1290,15 @@
             articulation: settings.composerKey === 'mozart' ? .82 : settings.movementKey === 'lyrical' ? 1.08 : .92,
             tension: config.tension,
             chromaticism: settings.composer.chromaticism,
-            octaveDouble: sectionIndex === 4 && (settings.composerKey !== 'mozart' || drama > .75)
+            degreeOffset: harmonicDegree,
+            octaveDouble: sectionIndex === 4 && drama > .72 && settings.composerKey !== 'mozart'
           }, rng);
 
           if (density > .55 && sectionIndex >= 2 && rng.chance(density * .62)) {
             const counter = transformMotif(phrase, 'invert', -2);
             addMotifPhrase(context, bus, counter, settings, cursor + beat, beat, {
               register: 0, velocity: config.velocity * .35, brightness: .44,
-              articulation: .76, tension: config.tension * .7, chromaticism: settings.composer.chromaticism * .55
+              articulation: .76, tension: config.tension * .6, chromaticism: settings.composer.chromaticism * .35, degreeOffset: harmonicDegree - 2
             }, rng);
           }
 
@@ -1192,16 +1311,16 @@
           const cadenceStart = Math.max(sectionStart, sectionEnd - bar * 1.35);
           const dominant = chordFromDegree(settings.root, scale, 4, 0, true);
           const tonic = chordFromDegree(settings.root, scale, 0, 0, settings.composerKey === 'mahler');
-          addPianoChord(context, bus, dominant.concat(dominant.map((n) => n + 12)), cadenceStart, beat * 1.8, .72 + drama * .16, .8, .02);
-          addPianoChord(context, bus, tonic.concat(tonic.slice(0, 2).map((n) => n + 12)), cadenceStart + beat * 2, beat * 3.6, .8 + drama * .14, .72, .024);
-          addPianoChord(context, bus, [settings.root - 24, settings.root - 12], cadenceStart + beat * 2, beat * 3.4, .68, .52, .01);
+          addPianoChord(context, bus, dominant.concat(dominant.map((n) => n + 12)), cadenceStart, beat * 1.8, .46 + drama * .08, .7, .024, settings.pianoTone);
+          addPianoChord(context, bus, tonic.concat(tonic.slice(0, 2).map((n) => n + 12)), cadenceStart + beat * 2, beat * 3.6, .5 + drama * .08, .64, .028, settings.pianoTone);
+          addPianoChord(context, bus, [settings.root - 24, settings.root - 12], cadenceStart + beat * 2, beat * 3.4, .4, .42, .014, settings.pianoTone);
         }
       });
 
       const finalStart = startAt + Math.max(0, settings.duration - bar * 1.25);
       const finalChord = chordFromDegree(settings.root, scale, 0, 0, settings.composerKey === 'mahler');
       if (settings.composerKey === 'mahler' && settings.movement.mode === 'minor' && rng.chance(.68)) finalChord[1] += 1;
-      addPianoChord(context, bus, [settings.root - 24, settings.root - 12].concat(finalChord, finalChord.slice(0, 2).map((n) => n + 12)), finalStart, bar * 1.08, .58, .5, .032);
+      addPianoChord(context, bus, [settings.root - 24, settings.root - 12].concat(finalChord, finalChord.slice(0, 2).map((n) => n + 12)), finalStart, bar * 1.08, .42, .46, .034, settings.pianoTone);
       return startAt + settings.duration;
     }
 
@@ -1214,28 +1333,39 @@
     async function startPlayback() {
       stopPlayback(false, true);
       const settings = getSettings();
+      ui.playBtn.disabled = true;
+      ui.status.textContent = settings.mode === 'classical' ? '깨끗한 피아노 음색과 서사 구조를 준비하는 중입니다…' : '명상 음향을 준비하는 중입니다…';
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) throw new Error('Web Audio API unavailable');
-        audioCtx = new AudioCtx();
+        try { audioCtx = new AudioCtx({ latencyHint: 'playback' }); }
+        catch (_) { audioCtx = new AudioCtx(); }
         await audioCtx.resume();
-        master = audioCtx.createGain();
         analyser = audioCtx.createAnalyser();
         analyser.fftSize = 1024;
-        analyser.smoothingTimeConstant = .84;
-        master.gain.value = settings.mode === 'classical' ? .72 : .78;
-        master.connect(analyser).connect(audioCtx.destination);
-        const start = audioCtx.currentTime + .09;
+        analyser.smoothingTimeConstant = .86;
+        analyser.connect(audioCtx.destination);
+        const chain = createOutputChain(audioCtx, analyser, settings);
+        master = chain.input;
+        masterFade = chain.output;
+        const targetGain = masterFade.gain.value;
+        masterFade.gain.setValueAtTime(.0001, audioCtx.currentTime);
+        masterFade.gain.linearRampToValueAtTime(targetGain, audioCtx.currentTime + .16);
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        const start = audioCtx.currentTime + .72;
         buildArrangement(audioCtx, master, settings, start);
-        playStartedAt = performance.now() / 1000 + .09;
+        const remainingDelay = Math.max(0, start - audioCtx.currentTime);
+        playStartedAt = performance.now() / 1000 + remainingDelay;
         playDuration = settings.duration;
         playing = true;
-        setPlayingUI(true, `“${titleFor(settings)}” 재생 중`);
+        setPlayingUI(true, `“${titleFor(settings)}” 재생 중 · 깨끗한 피아노 엔진 v4`);
         drawVisualizer();
-        timers.push(window.setTimeout(() => stopPlayback(true), (settings.duration + .7) * 1000));
+        timers.push(window.setTimeout(() => stopPlayback(true), (remainingDelay + settings.duration + 1.2) * 1000));
       } catch (error) {
         console.error(error);
-        ui.status.textContent = '오디오를 시작하지 못했습니다. Chrome, Edge 또는 Firefox 최신 버전에서 실행해 주세요.';
+        ui.status.textContent = '오디오를 시작하지 못했습니다. Chrome 또는 Edge 최신 버전에서 다시 실행해 주세요.';
+      } finally {
+        ui.playBtn.disabled = false;
       }
     }
 
@@ -1243,19 +1373,35 @@
       timers.forEach(clearTimeout);
       timers = [];
       cancelAnimationFrame(animationFrame);
-      activeNodes.forEach((node) => {
-        try { if (typeof node.stop === 'function') node.stop(); } catch (_) {}
-        try { node.disconnect(); } catch (_) {}
-      });
+      const oldContext = audioCtx;
+      const oldFade = masterFade;
+      const oldNodes = activeNodes.slice();
       activeNodes = [];
-      if (audioCtx) {
-        try { audioCtx.close(); } catch (_) {}
-      }
       audioCtx = null;
       analyser = null;
       master = null;
+      masterFade = null;
       playing = false;
-      if (!silent) setPlayingUI(false, natural ? '곡 재생이 끝났습니다.' : '재생을 정지했습니다.');
+
+      if (oldContext) {
+        try {
+          const now = oldContext.currentTime;
+          if (oldFade) {
+            oldFade.gain.cancelScheduledValues(now);
+            oldFade.gain.setValueAtTime(Math.max(.0001, oldFade.gain.value), now);
+            oldFade.gain.linearRampToValueAtTime(.0001, now + .075);
+          }
+        } catch (_) {}
+        window.setTimeout(() => {
+          oldNodes.forEach((node) => {
+            try { if (typeof node.stop === 'function') node.stop(); } catch (_) {}
+            try { node.disconnect(); } catch (_) {}
+          });
+          try { oldContext.close(); } catch (_) {}
+        }, 90);
+      }
+
+      if (!silent) setPlayingUI(false, natural ? '곡 재생이 끝났습니다.' : '재생을 부드럽게 정지했습니다.');
       else setPlayingUI(false, '새 곡을 준비했습니다.');
       refreshMeta();
       drawIdle();
@@ -1404,11 +1550,17 @@
       writeString(view, 36, 'data');
       view.setUint32(40, buffer.length * channels * 2, true);
       const channelData = [];
-      for (let channel = 0; channel < channels; channel++) channelData.push(buffer.getChannelData(channel));
+      let peak = 0;
+      for (let channel = 0; channel < channels; channel++) {
+        const data = buffer.getChannelData(channel);
+        channelData.push(data);
+        for (let i = 0; i < data.length; i += 16) peak = Math.max(peak, Math.abs(data[i]));
+      }
+      const normalization = peak > .94 ? .92 / peak : peak > .0001 && peak < .38 ? Math.min(1.9, .58 / peak) : 1;
       let offset = 44;
       for (let i = 0; i < buffer.length; i++) {
         for (let channel = 0; channel < channels; channel++) {
-          const sample = clamp(channelData[channel][i], -1, 1);
+          const sample = clamp(channelData[channel][i] * normalization, -1, 1);
           view.setInt16(offset, sample < 0 ? sample * 32768 : sample * 32767, true);
           offset += 2;
         }
@@ -1430,10 +1582,8 @@
         const sampleRate = 44100;
         const tail = settings.mode === 'classical' ? 5 : 6;
         const offline = new OfflineCtx(2, Math.ceil((settings.duration + tail) * sampleRate), sampleRate);
-        const offlineMaster = offline.createGain();
-        offlineMaster.gain.value = settings.mode === 'classical' ? .72 : .78;
-        offlineMaster.connect(offline.destination);
-        buildArrangement(offline, offlineMaster, settings, 0);
+        const offlineChain = createOutputChain(offline, offline.destination, settings);
+        buildArrangement(offline, offlineChain.input, settings, .08);
         const rendered = await offline.startRendering();
         const wav = audioBufferToWav(rendered);
         const url = URL.createObjectURL(wav);
@@ -1478,9 +1628,10 @@
     ui.bpm.addEventListener('input', () => { ui.bpmOut.textContent = ui.bpm.value; refreshMeta(); });
     ui.density.addEventListener('input', () => { ui.densityOut.textContent = ui.density.value; });
     ui.drama.addEventListener('input', () => { ui.dramaOut.textContent = ui.drama.value; });
+    ui.volume.addEventListener('input', () => { ui.volumeOut.textContent = ui.volume.value; });
     ui.composer.addEventListener('change', applyComposerDefaults);
     ui.movement.addEventListener('change', applyComposerDefaults);
-    [ui.preset, ui.key, ui.duration].forEach((element) => element.addEventListener('change', refreshMeta));
+    [ui.preset, ui.pianoTone, ui.key, ui.duration].forEach((element) => element.addEventListener('change', refreshMeta));
     ui.seed.addEventListener('input', refreshMeta);
     ui.playBtn.addEventListener('click', startPlayback);
     ui.stopBtn.addEventListener('click', () => stopPlayback(false));
